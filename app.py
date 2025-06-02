@@ -17,13 +17,13 @@ with col2:
     st.title("Shovel Pipeline Tracker")
 
 # ---- Internal Use Warning ----
-st.warning("🚧 Internal Use Only — For Motion Metrics Remote Support Team.")
+st.warning("🚧 Internal Use Only - For Motion Metrics Remote Support Team.")
 
 st.markdown("Use this tool to retrieve engine pipeline logs for a specific shovel over a selected date range.")
 
 # ---- Input Form ----
 with st.form("pipeline_query_form"):
-    st.subheader(" Search Inputs")
+    st.subheader("Search Inputs")
 
     col1, col2 = st.columns(2)
     with col1:
@@ -44,11 +44,13 @@ if submitted:
     else:
         try:
             with st.spinner("Connecting to database..."):
+                # Using Streamlit secrets
+                db_config = st.secrets["mysql"]
                 conn = mysql.connector.connect(
-                    host="34.83.13.233",
-                    user="valentina",
-                    password="rar.azb0aqx1aqx7DFT",
-                    database="air_cloud_db"
+                    host=db_config["host"],
+                    user=db_config["user"],
+                    password=db_config["password"],
+                    database=db_config["database"]
                 )
                 cursor = conn.cursor()
 
@@ -87,13 +89,12 @@ if submitted:
                 logs = cursor.fetchall()
                 df = pd.DataFrame(logs, columns=["log_timestamp", "engine_id"])
 
-                # ---- Display and Export ----
                 if not df.empty:
                     df["pipeline_label"] = df["engine_id"].apply(label_pipeline)
                     st.success(f"Found {len(df)} pipeline log(s).")
                     st.dataframe(df, use_container_width=True)
 
-                    # ✅ Filename fix
+                    # Export CSV
                     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                     filename = f"{source_name}_pipeline_logs_{start_date}_to_{end_date}_{timestamp}.csv"
                     csv = df.to_csv(index=False).encode("utf-8")
