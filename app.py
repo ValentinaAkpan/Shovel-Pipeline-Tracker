@@ -3,6 +3,8 @@ import mysql.connector
 import pandas as pd
 from datetime import date, datetime
 from pathlib import Path
+from dotenv import load_dotenv
+import os
 
 # ---- Setup ----
 st.set_page_config(page_title="Shovel Pipeline Tracker", layout="centered")
@@ -13,6 +15,8 @@ with col1:
     logo_path = Path("logo.svg")
     if logo_path.exists():
         st.image(str(logo_path), width=100)
+    else:
+        st.warning("⚠️ logo.svg not found.")
 with col2:
     st.title("Shovel Pipeline Tracker")
 
@@ -23,7 +27,7 @@ st.markdown("Use this tool to retrieve engine pipeline logs for a specific shove
 
 # ---- Input Form ----
 with st.form("pipeline_query_form"):
-    st.subheader(" Search Inputs")
+    st.subheader("Search Inputs")
 
     col1, col2 = st.columns(2)
     with col1:
@@ -44,13 +48,16 @@ if submitted:
     else:
         try:
             with st.spinner("Connecting to database..."):
+                load_dotenv()
                 conn = mysql.connector.connect(
                     host="34.83.13.233",
-                    user="valentina",
-                    password="rar.azb0aqx1aqx7DFT",
-                    database="air_cloud_db"
+                    user=os.getenv("DB_USER"),
+                    password=os.getenv("DB_PASS"),
+                    database="air_cloud_db",
+                    connect_timeout=10
                 )
                 cursor = conn.cursor()
+                st.success("Connected to database!")
 
             # ---- Get Shovel UUID ----
             cursor.execute("SELECT uuid FROM air_field_units WHERE name = %s LIMIT 1;", (source_name,))
@@ -93,7 +100,7 @@ if submitted:
                     st.success(f"Found {len(df)} pipeline log(s).")
                     st.dataframe(df, use_container_width=True)
 
-                    # ✅ Filename fix
+                    # Filename fix
                     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                     filename = f"{source_name}_pipeline_logs_{start_date}_to_{end_date}_{timestamp}.csv"
                     csv = df.to_csv(index=False).encode("utf-8")
@@ -111,3 +118,6 @@ if submitted:
 
         except mysql.connector.Error as err:
             st.error(f"❌ Database error: {err}")
+            st.error(f"Error code: {err.errno}, SQLSTATE: {err.sqlstate}")
+        except Exception as e:
+            st.error(f"❌ Unexpected error: {e}")
